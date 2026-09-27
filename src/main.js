@@ -1,20 +1,28 @@
-const app = document.querySelector("#app");
+const app = document.getElementById("app");
 
 app.innerHTML = `
-  <main style="
+  <div style="
     min-height:100vh;
     background:#050505;
     color:white;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-family:Arial,sans-serif;
     text-align:center;
+    font-family:Arial,sans-serif;
   ">
     <div>
-      <h1 style="font-size:60px;margin:0;">KNOCKD</h1>
-      <p style="color:#888;">THE SITE IS LOADING</p>
-      <p style="color:#555;font-size:13px;">main.js is working</p>
+      <h1 style="
+        margin:0;
+        font-size:70px;
+        font-weight:900;
+      ">
+        KNOCKD
+      </h1>
+
+      <p style="color:#888;">
+        MAIN.JS WORKS
+      </p>
     </div>
-  </main>
+  </div>
 `;
