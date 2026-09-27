@@ -3,48 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>KNOCKD</title>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
     body {
       margin: 0;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       background: #050505;
       color: white;
       font-family: Arial, sans-serif;
-      text-align: center;
     }
 
-    h1 {
-      margin: 0;
-      font-size: 70px;
-      font-weight: 1000;
-      letter-spacing: -5px;
-    }
-
-    p {
-      color: #888;
-      font-size: 12px;
-      font-weight: bold;
-      letter-spacing: 4px;
+    #app {
+      min-height: 100vh;
     }
   </style>
 </head>
 
 <body>
 
-  <div>
-    <h1>KNOCKD</h1>
-    <p>IT WORKS.</p>
+  <div id="app">
+    <div style="
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    ">
+      <div>
+        <div style="
+          font-size:70px;
+          font-weight:900;
+          letter-spacing:-5px;
+        ">
+          KNOCKD
+        </div>
+
+        <div style="
+          margin-top:15px;
+          color:#888;
+          font-size:12px;
+          letter-spacing:4px;
+        ">
+          LOADING...
+        </div>
+      </div>
+    </div>
   </div>
+
+  <script type="module" src="./src/main.js"></script>
 
 </body>
 </html>
