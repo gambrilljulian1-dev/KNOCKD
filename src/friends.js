@@ -5,11 +5,10 @@ import {
   query,
   where,
   doc,
-  getDoc,
   updateDoc,
   deleteDoc,
   serverTimestamp
-} from "firebase/firestore";
+} from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 import { db } from "./firebase.js";
 
@@ -18,7 +17,11 @@ export async function searchUser(username) {
 
   const q = query(
     usersRef,
-    where("usernameLower", "==", username.toLowerCase())
+    where(
+      "usernameLower",
+      "==",
+      username.toLowerCase()
+    )
   );
 
   const snapshot = await getDocs(q);
@@ -31,12 +34,16 @@ export async function searchUser(username) {
 }
 
 export async function sendFriendRequest(fromUser, toUser) {
-  const requestsRef = collection(db, "friendRequests");
+  const requestsRef = collection(
+    db,
+    "friendRequests"
+  );
 
   const existingQuery = query(
     requestsRef,
     where("from", "==", fromUser.uid),
-    where("to", "==", toUser.uid)
+    where("to", "==", toUser.uid),
+    where("status", "==", "pending")
   );
 
   const existing = await getDocs(existingQuery);
@@ -48,15 +55,21 @@ export async function sendFriendRequest(fromUser, toUser) {
   await addDoc(requestsRef, {
     from: fromUser.uid,
     fromUsername: fromUser.username,
+
     to: toUser.uid,
     toUsername: toUser.username,
+
     status: "pending",
+
     createdAt: serverTimestamp()
   });
 }
 
 export async function getIncomingRequests(userId) {
-  const requestsRef = collection(db, "friendRequests");
+  const requestsRef = collection(
+    db,
+    "friendRequests"
+  );
 
   const q = query(
     requestsRef,
@@ -73,25 +86,27 @@ export async function getIncomingRequests(userId) {
 }
 
 export async function acceptFriendRequest(request) {
-  const requestRef = doc(
-    db,
-    "friendRequests",
-    request.id
+  await updateDoc(
+    doc(db, "friendRequests", request.id),
+    {
+      status: "accepted"
+    }
   );
 
-  await updateDoc(requestRef, {
-    status: "accepted"
-  });
+  await addDoc(
+    collection(db, "friends"),
+    {
+      user1: request.from,
+      user2: request.to,
 
-  await addDoc(collection(db, "friends"), {
-    user1: request.from,
-    user2: request.to,
-    usernames: [
-      request.fromUsername,
-      request.toUsername
-    ],
-    createdAt: serverTimestamp()
-  });
+      usernames: [
+        request.fromUsername,
+        request.toUsername
+      ],
+
+      createdAt: serverTimestamp()
+    }
+  );
 }
 
 export async function declineFriendRequest(requestId) {
