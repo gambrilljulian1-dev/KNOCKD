@@ -7,10 +7,33 @@ import {
   onAuthStateChanged
 } from "firebase/auth";
 
-import { auth } from "./firebase.js";
+import { auth, db } from "./firebase.js";
+
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  getDoc
+} from "firebase/firestore";
+
 import { createUserProfile } from "./profile.js";
 
 const app = document.querySelector("#app");
+
+async function checkUsernameTaken(usernameLower) {
+  const usersRef = collection(db, "users");
+
+  const usernameQuery = query(
+    usersRef,
+    where("usernameLower", "==", usernameLower)
+  );
+
+  const snapshot = await getDocs(usernameQuery);
+
+  return !snapshot.empty;
+}
 
 function showAuth() {
   app.innerHTML = `
@@ -31,7 +54,7 @@ function showAuth() {
             placeholder="Username"
             maxlength="20"
             autocomplete="username"
-            style="display: none;"
+            style="display:none;"
           >
 
           <input
@@ -46,12 +69,13 @@ function showAuth() {
             id="password"
             type="password"
             placeholder="Password"
-            autocomplete="current-password"
             minlength="6"
             required
           >
 
-          <button type="submit" class="primary">LOG IN</button>
+          <button type="submit" class="primary">
+            LOG IN
+          </button>
         </form>
 
         <p id="authMessage" class="message"></p>
@@ -119,9 +143,7 @@ function showAuth() {
 
         const usernameLower = username.toLowerCase();
 
-        const usernameTaken = await checkUsernameTaken(usernameLower);
-
-        if (usernameTaken) {
+        if (await checkUsernameTaken(usernameLower)) {
           message.textContent =
             "That username is already taken.";
           return;
@@ -145,16 +167,12 @@ function showAuth() {
       const errors = {
         "auth/invalid-credential":
           "Incorrect email or password.",
-
         "auth/email-already-in-use":
           "That email is already registered.",
-
         "auth/invalid-email":
           "Enter a valid email.",
-
         "auth/weak-password":
           "Password must be at least 6 characters.",
-
         "auth/network-request-failed":
           "Check your internet connection."
       };
@@ -166,47 +184,158 @@ function showAuth() {
   });
 }
 
-async function checkUsernameTaken(usernameLower) {
-  const { collection, getDocs, query, where } =
-    await import("firebase/firestore");
+async function showHome(user) {
+  const profileRef = doc(db, "users", user.uid);
+  const profileSnap = await getDoc(profileRef);
 
-  const { db } = await import("./firebase.js");
+  const profile = profileSnap.exists()
+    ? profileSnap.data()
+    : null;
 
-  const usersRef = collection(db, "users");
+  const username = profile?.username || "PLAYER";
+  const wins = profile?.wins ?? 0;
+  const losses = profile?.losses ?? 0;
 
-  const usernameQuery = query(
-    usersRef,
-    where("usernameLower", "==", usernameLower)
-  );
-
-  const snapshot = await getDocs(usernameQuery);
-
-  return !snapshot.empty;
-}
-
-function showHome(user) {
   app.innerHTML = `
     <main class="knockd">
       <section class="home">
         <div class="logo">KNOCKD</div>
-        <p class="tagline">WELCOME TO THE FIGHT.</p>
 
-        <p class="signed-in">
-          Signed in as<br>
-          <strong>${user.email}</strong>
+        <p class="tagline">
+          WELCOME TO THE FIGHT.
         </p>
 
+        <div class="profile-preview">
+          <div class="avatar">
+            ${username.charAt(0).toUpperCase()}
+          </div>
+
+          <h2>@${username}</h2>
+
+          <div class="stats">
+            <div>
+              <strong>${wins}</strong>
+              <span>WINS</span>
+            </div>
+
+            <div>
+              <strong>${losses}</strong>
+              <span>LOSSES</span>
+            </div>
+          </div>
+        </div>
+
         <div class="menu">
-          <button class="primary">QUICK MATCH</button>
-          <button>FRIENDS</button>
-          <button>PRACTICE</button>
-          <button>FIGHTERS</button>
-          <button>PROFILE</button>
-          <button id="logout">LOG OUT</button>
+          <button id="quickMatch" class="primary">
+            QUICK MATCH
+          </button>
+
+          <button id="friends">
+            FRIENDS
+          </button>
+
+          <button id="practice">
+            PRACTICE
+          </button>
+
+          <button id="fighters">
+            FIGHTERS
+          </button>
+
+          <button id="profile">
+            PROFILE
+          </button>
+
+          <button id="logout">
+            LOG OUT
+          </button>
         </div>
       </section>
     </main>
   `;
+
+  document
+    .querySelector("#logout")
+    .addEventListener("click", async () => {
+      await signOut(auth);
+    });
+
+  document
+    .querySelector("#profile")
+    .addEventListener("click", () => {
+      showProfile(user);
+    });
+}
+
+async function showProfile(user) {
+  const profileRef = doc(db, "users", user.uid);
+  const profileSnap = await getDoc(profileRef);
+
+  const profile = profileSnap.exists()
+    ? profileSnap.data()
+    : {};
+
+  const username = profile.username || "PLAYER";
+  const wins = profile.wins ?? 0;
+  const losses = profile.losses ?? 0;
+
+  app.innerHTML = `
+    <main class="knockd">
+      <section class="home">
+
+        <button id="back" class="back">
+          ← BACK
+        </button>
+
+        <div class="avatar large">
+          ${username.charAt(0).toUpperCase()}
+        </div>
+
+        <div class="logo small-logo">
+          KNOCKD
+        </div>
+
+        <h1>@${username}</h1>
+
+        <p class="email">
+          ${user.email}
+        </p>
+
+        <div class="big-stats">
+
+          <div class="stat-card">
+            <strong>${wins}</strong>
+            <span>WINS</span>
+          </div>
+
+          <div class="stat-card">
+            <strong>${losses}</strong>
+            <span>LOSSES</span>
+          </div>
+
+        </div>
+
+        <div class="menu">
+          <button id="back2">
+            BACK TO MENU
+          </button>
+
+          <button id="logout">
+            LOG OUT
+          </button>
+        </div>
+
+      </section>
+    </main>
+  `;
+
+  document
+    .querySelector("#back")
+    .addEventListener("click", () => showHome(user));
+
+  document
+    .querySelector("#back2")
+    .addEventListener("click", () => showHome(user));
 
   document
     .querySelector("#logout")
