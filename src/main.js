@@ -1,24 +1,112 @@
 import "./style.css";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "firebase/auth";
+import { auth } from "./firebase.js";
 const app = document.querySelector("#app");
-app.innerHTML = `
-  <main class="knockd">
-    <section class="hero">
-      <div class="logo">KNOCKD</div>
-      <p class="tagline">FIGHT. CONNECT. WIN.</p>
-      <div class="status">
-        <span class="status-dot"></span>
-        <span>ONLINE</span>
-      </div>
-      <div class="buttons">
-        <button id="loginButton">LOG IN</button>
-        <button id="signupButton" class="secondary">SIGN UP</button>
-      </div>
-    </section>
-  </main>
-`;
-document.querySelector("#loginButton").addEventListener("click", () => {
-  alert("KNOCKD login coming next.");
-});
-document.querySelector("#signupButton").addEventListener("click", () => {
-  alert("KNOCKD signup coming next.");
+function showAuth() {
+  app.innerHTML = `
+    <main class="knockd">
+      <section class="auth-card">
+        <div class="logo">KNOCKD</div>
+        <p class="tagline">FIGHT. CONNECT. WIN.</p>
+        <div class="tabs">
+          <button id="loginTab" class="active">LOG IN</button>
+          <button id="signupTab">SIGN UP</button>
+        </div>
+        <form id="authForm">
+          <input
+            id="email"
+            type="email"
+            placeholder="Email"
+            autocomplete="email"
+            required
+          >
+          <input
+            id="password"
+            type="password"
+            placeholder="Password"
+            autocomplete="current-password"
+            minlength="6"
+            required
+          >
+          <button type="submit" class="primary">LOG IN</button>
+        </form>
+        <p id="authMessage" class="message"></p>
+      </section>
+    </main>
+  `;
+  let mode = "login";
+  const form = document.querySelector("#authForm");
+  const loginTab = document.querySelector("#loginTab");
+  const signupTab = document.querySelector("#signupTab");
+  const message = document.querySelector("#authMessage");
+  function setMode(newMode) {
+    mode = newMode;
+    loginTab.classList.toggle("active", mode === "login");
+    signupTab.classList.toggle("active", mode === "signup");
+    form.querySelector(".primary").textContent =
+      mode === "login" ? "LOG IN" : "CREATE ACCOUNT";
+    message.textContent = "";
+  }
+  loginTab.addEventListener("click", () => setMode("login"));
+  signupTab.addEventListener("click", () => setMode("signup"));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = document.querySelector("#email").value.trim();
+    const password = document.querySelector("#password").value;
+    message.textContent = "Loading...";
+    try {
+      if (mode === "login") {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+    } catch (error) {
+      const errors = {
+        "auth/invalid-credential": "Incorrect email or password.",
+        "auth/email-already-in-use": "That email is already registered.",
+        "auth/invalid-email": "Enter a valid email.",
+        "auth/weak-password": "Password must be at least 6 characters.",
+        "auth/network-request-failed": "Check your internet connection."
+      };
+      message.textContent =
+        errors[error.code] || "Something went wrong. Try again.";
+    }
+  });
+}
+function showHome(user) {
+  app.innerHTML = `
+    <main class="knockd">
+      <section class="home">
+        <div class="logo">KNOCKD</div>
+        <p class="tagline">WELCOME TO THE FIGHT.</p>
+        <p class="signed-in">
+          Signed in as<br>
+          <strong>${user.email}</strong>
+        </p>
+        <div class="menu">
+          <button class="primary">QUICK MATCH</button>
+          <button>FRIENDS</button>
+          <button>PRACTICE</button>
+          <button>FIGHTERS</button>
+          <button>PROFILE</button>
+          <button id="logout">LOG OUT</button>
+        </div>
+      </section>
+    </main>
+  `;
+  document.querySelector("#logout").addEventListener("click", async () => {
+    await signOut(auth);
+  });
+}
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    showHome(user);
+  } else {
+    showAuth();
+  }
 });
