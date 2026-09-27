@@ -1,22 +1,22 @@
 import {
   collection,
-  addDoc,
-  getDocs,
   query,
   where,
-  doc,
+  getDocs,
+  addDoc,
   updateDoc,
   deleteDoc,
+  doc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 import { db } from "./firebase.js";
 
-export async function searchUser(username) {
-  const usersRef = collection(db, "users");
-
+export async function findUser(
+  username
+) {
   const q = query(
-    usersRef,
+    collection(db, "users"),
     where(
       "usernameLower",
       "==",
@@ -24,70 +24,65 @@ export async function searchUser(username) {
     )
   );
 
-  const snapshot = await getDocs(q);
+  const results =
+    await getDocs(q);
 
-  if (snapshot.empty) {
+  if (results.empty) {
     return null;
   }
 
-  return snapshot.docs[0].data();
+  return results.docs[0].data();
 }
 
-export async function sendFriendRequest(fromUser, toUser) {
-  const requestsRef = collection(
-    db,
-    "friendRequests"
+export async function sendFriendRequest(
+  from,
+  to
+) {
+  await addDoc(
+    collection(db, "friendRequests"),
+    {
+      from: from.uid,
+      fromUsername: from.username,
+
+      to: to.uid,
+      toUsername: to.username,
+
+      status: "pending",
+
+      createdAt: serverTimestamp()
+    }
   );
-
-  const existingQuery = query(
-    requestsRef,
-    where("from", "==", fromUser.uid),
-    where("to", "==", toUser.uid),
-    where("status", "==", "pending")
-  );
-
-  const existing = await getDocs(existingQuery);
-
-  if (!existing.empty) {
-    throw new Error("REQUEST_EXISTS");
-  }
-
-  await addDoc(requestsRef, {
-    from: fromUser.uid,
-    fromUsername: fromUser.username,
-
-    to: toUser.uid,
-    toUsername: toUser.username,
-
-    status: "pending",
-
-    createdAt: serverTimestamp()
-  });
 }
 
-export async function getIncomingRequests(userId) {
-  const requestsRef = collection(
-    db,
-    "friendRequests"
-  );
-
+export async function getRequests(
+  uid
+) {
   const q = query(
-    requestsRef,
-    where("to", "==", userId),
+    collection(db, "friendRequests"),
+    where("to", "==", uid),
     where("status", "==", "pending")
   );
 
-  const snapshot = await getDocs(q);
+  const results =
+    await getDocs(q);
 
-  return snapshot.docs.map((item) => ({
-    id: item.id,
-    ...item.data()
-  }));
+  return results.docs.map(
+    item => ({
+      id: item.id,
+      ...item.data()
+    })
+  );
 }
 
-export async function acceptFriendRequest(request) {
+export async function acceptRequest(
+  request
+) {
   await updateDoc(
-    doc(db, "friendRequests", request.id),
+    doc(
+      db,
+      "friendRequests",
+      request.id
+    ),
     {
       status: "accepted"
     }
@@ -109,8 +104,14 @@ export async function acceptFriendRequest(request) {
   );
 }
 
-export async function declineFriendRequest(requestId) {
+export async function declineRequest(
+  requestId
+) {
   await deleteDoc(
-    doc(db, "friendRequests", requestId)
+    doc(
+      db,
+      "friendRequests",
+      requestId
+    )
   );
 }
