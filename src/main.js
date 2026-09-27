@@ -30,15 +30,17 @@ import {
 
 const app = document.querySelector("#app");
 
-async function checkUsernameTaken(usernameLower) {
-  const usersRef = collection(db, "users");
+/* =========================
+   AUTH
+========================= */
 
-  const usernameQuery = query(
-    usersRef,
-    where("usernameLower", "==", usernameLower)
+async function usernameTaken(username) {
+  const q = query(
+    collection(db, "users"),
+    where("usernameLower", "==", username.toLowerCase())
   );
 
-  const snapshot = await getDocs(usernameQuery);
+  const snapshot = await getDocs(q);
 
   return !snapshot.empty;
 }
@@ -47,21 +49,31 @@ function showAuth() {
   app.innerHTML = `
     <main class="knockd">
       <section class="auth-card">
+
         <div class="logo">KNOCKD</div>
-        <p class="tagline">FIGHT. CONNECT. WIN.</p>
+
+        <p class="tagline">
+          FIGHT. CONNECT. WIN.
+        </p>
 
         <div class="tabs">
-          <button id="loginTab" class="active">LOG IN</button>
-          <button id="signupTab">SIGN UP</button>
+          <button id="loginTab" class="active">
+            LOG IN
+          </button>
+
+          <button id="signupTab">
+            SIGN UP
+          </button>
         </div>
 
         <form id="authForm">
+
           <input
             id="username"
             type="text"
             placeholder="Username"
             maxlength="20"
-            style="display:none;"
+            style="display:none"
           >
 
           <input
@@ -79,12 +91,18 @@ function showAuth() {
             required
           >
 
-          <button type="submit" class="primary">
+          <button
+            id="submitButton"
+            type="submit"
+            class="primary"
+          >
             LOG IN
           </button>
+
         </form>
 
         <p id="authMessage" class="message"></p>
+
       </section>
     </main>
   `;
@@ -95,37 +113,49 @@ function showAuth() {
   const usernameInput = document.querySelector("#username");
   const loginTab = document.querySelector("#loginTab");
   const signupTab = document.querySelector("#signupTab");
+  const submitButton = document.querySelector("#submitButton");
   const message = document.querySelector("#authMessage");
-  const submitButton = form.querySelector(".primary");
 
   function setMode(newMode) {
     mode = newMode;
 
-    loginTab.classList.toggle("active", mode === "login");
-    signupTab.classList.toggle("active", mode === "signup");
+    const signup = mode === "signup";
 
-    usernameInput.style.display =
-      mode === "signup" ? "block" : "none";
+    loginTab.classList.toggle("active", !signup);
+    signupTab.classList.toggle("active", signup);
 
-    usernameInput.required = mode === "signup";
+    usernameInput.style.display = signup
+      ? "block"
+      : "none";
 
-    submitButton.textContent =
-      mode === "login"
-        ? "LOG IN"
-        : "CREATE ACCOUNT";
+    usernameInput.required = signup;
+
+    submitButton.textContent = signup
+      ? "CREATE ACCOUNT"
+      : "LOG IN";
 
     message.textContent = "";
   }
 
-  loginTab.addEventListener("click", () => setMode("login"));
-  signupTab.addEventListener("click", () => setMode("signup"));
+  loginTab.addEventListener("click", () => {
+    setMode("login");
+  });
+
+  signupTab.addEventListener("click", () => {
+    setMode("signup");
+  });
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const email = document.querySelector("#email").value.trim();
-    const password = document.querySelector("#password").value;
-    const username = usernameInput.value.trim();
+    const email =
+      document.querySelector("#email").value.trim();
+
+    const password =
+      document.querySelector("#password").value;
+
+    const username =
+      usernameInput.value.trim();
 
     message.textContent = "Loading...";
 
@@ -136,92 +166,119 @@ function showAuth() {
           email,
           password
         );
-      } else {
-        if (username.length < 3) {
-          message.textContent =
-            "Username must be at least 3 characters.";
-          return;
-        }
 
-        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-          message.textContent =
-            "Username can only use letters, numbers, and _.";
-          return;
-        }
-
-        const usernameLower = username.toLowerCase();
-
-        if (await checkUsernameTaken(usernameLower)) {
-          message.textContent =
-            "That username is already taken.";
-          return;
-        }
-
-        const result =
-          await createUserWithEmailAndPassword(
-            auth,
-            email,
-            password
-          );
-
-        await createUserProfile(
-          result.user,
-          username
-        );
+        return;
       }
+
+      if (username.length < 3) {
+        message.textContent =
+          "Username must be at least 3 characters.";
+        return;
+      }
+
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        message.textContent =
+          "Username can only use letters, numbers, and _.";
+        return;
+      }
+
+      if (await usernameTaken(username)) {
+        message.textContent =
+          "That username is already taken.";
+        return;
+      }
+
+      const result =
+        await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+      await createUserProfile(
+        result.user,
+        username
+      );
+
     } catch (error) {
       console.error(error);
 
       const errors = {
         "auth/invalid-credential":
           "Incorrect email or password.",
+
         "auth/email-already-in-use":
           "That email is already registered.",
+
         "auth/invalid-email":
           "Enter a valid email.",
+
         "auth/weak-password":
           "Password must be at least 6 characters.",
+
         "auth/network-request-failed":
           "Check your internet connection."
       };
 
       message.textContent =
         errors[error.code] ||
-        "Something went wrong. Try again.";
+        "Something went wrong.";
     }
   });
 }
 
+/* =========================
+   HOME
+========================= */
+
+async function getProfile(user) {
+  const snap = await getDoc(
+    doc(db, "users", user.uid)
+  );
+
+  if (!snap.exists()) {
+    return null;
+  }
+
+  return snap.data();
+}
+
 async function showHome(user) {
-  const profileRef = doc(db, "users", user.uid);
-  const profileSnap = await getDoc(profileRef);
+  const profile = await getProfile(user);
 
-  const profile = profileSnap.exists()
-    ? profileSnap.data()
-    : null;
+  const username =
+    profile?.username || "PLAYER";
 
-  const username = profile?.username || "PLAYER";
-  const wins = profile?.wins ?? 0;
-  const losses = profile?.losses ?? 0;
+  const wins =
+    profile?.wins ?? 0;
+
+  const losses =
+    profile?.losses ?? 0;
 
   app.innerHTML = `
     <main class="knockd">
       <section class="home">
 
-        <div class="logo">KNOCKD</div>
+        <div class="logo">
+          KNOCKD
+        </div>
 
         <p class="tagline">
           WELCOME TO THE FIGHT.
         </p>
 
         <div class="profile-preview">
+
           <div class="avatar">
-            ${username.charAt(0).toUpperCase()}
+            ${username[0].toUpperCase()}
           </div>
 
-          <h2>@${username}</h2>
+          <h2>
+            @${username}
+          </h2>
 
           <div class="stats">
+
             <div>
               <strong>${wins}</strong>
               <span>WINS</span>
@@ -231,15 +288,18 @@ async function showHome(user) {
               <strong>${losses}</strong>
               <span>LOSSES</span>
             </div>
+
           </div>
+
         </div>
 
         <div class="menu">
+
           <button class="primary">
             QUICK MATCH
           </button>
 
-          <button id="friends">
+          <button id="friendsButton">
             FRIENDS
           </button>
 
@@ -251,13 +311,14 @@ async function showHome(user) {
             FIGHTERS
           </button>
 
-          <button id="profile">
+          <button id="profileButton">
             PROFILE
           </button>
 
-          <button id="logout">
+          <button id="logoutButton">
             LOG OUT
           </button>
+
         </div>
 
       </section>
@@ -265,40 +326,39 @@ async function showHome(user) {
   `;
 
   document
-    .querySelector("#friends")
+    .querySelector("#friendsButton")
     .addEventListener("click", () => {
       showFriends(user);
     });
 
   document
-    .querySelector("#profile")
+    .querySelector("#profileButton")
     .addEventListener("click", () => {
       showProfile(user);
     });
 
   document
-    .querySelector("#logout")
+    .querySelector("#logoutButton")
     .addEventListener("click", async () => {
       await signOut(auth);
     });
 }
 
+/* =========================
+   FRIENDS
+========================= */
+
 async function showFriends(user) {
-  const profileSnap = await getDoc(
-    doc(db, "users", user.uid)
-  );
+  const profile = await getProfile(user);
 
-  const profile = profileSnap.exists()
-    ? profileSnap.data()
-    : {};
-
-  const username = profile.username || "PLAYER";
+  const username =
+    profile?.username || "PLAYER";
 
   app.innerHTML = `
     <main class="knockd">
       <section class="home">
 
-        <button id="back" class="back">
+        <button id="backButton" class="back">
           ← BACK
         </button>
 
@@ -311,6 +371,7 @@ async function showFriends(user) {
         </p>
 
         <div class="friend-search">
+
           <input
             id="friendUsername"
             type="text"
@@ -318,20 +379,29 @@ async function showFriends(user) {
             maxlength="20"
           >
 
-          <button id="searchFriend" class="primary">
+          <button
+            id="searchButton"
+            class="primary"
+          >
             SEARCH
           </button>
 
           <p id="friendMessage" class="message"></p>
 
           <div id="searchResult"></div>
+
         </div>
 
         <div class="friend-section">
-          <h2>FRIEND REQUESTS</h2>
+
+          <h2>
+            FRIEND REQUESTS
+          </h2>
+
           <div id="requests">
             Loading...
           </div>
+
         </div>
 
       </section>
@@ -339,14 +409,15 @@ async function showFriends(user) {
   `;
 
   document
-    .querySelector("#back")
+    .querySelector("#backButton")
     .addEventListener("click", () => {
       showHome(user);
     });
 
   document
-    .querySelector("#searchFriend")
+    .querySelector("#searchButton")
     .addEventListener("click", async () => {
+
       const input =
         document.querySelector("#friendUsername");
 
@@ -356,10 +427,10 @@ async function showFriends(user) {
       const result =
         document.querySelector("#searchResult");
 
-      const searchedUsername =
+      const searched =
         input.value.trim();
 
-      if (!searchedUsername) {
+      if (!searched) {
         message.textContent =
           "Enter a username.";
         return;
@@ -369,16 +440,16 @@ async function showFriends(user) {
       result.innerHTML = "";
 
       try {
-        const foundUser =
-          await searchUser(searchedUsername);
+        const found =
+          await searchUser(searched);
 
-        if (!foundUser) {
+        if (!found) {
           message.textContent =
             "User not found.";
           return;
         }
 
-        if (foundUser.uid === user.uid) {
+        if (found.uid === user.uid) {
           message.textContent =
             "You can't add yourself.";
           return;
@@ -388,85 +459,109 @@ async function showFriends(user) {
 
         result.innerHTML = `
           <div class="user-result">
+
             <div>
-              <strong>@${foundUser.username}</strong>
-              <span>PLAYER</span>
+              <strong>
+                @${found.username}
+              </strong>
+
+              <span>
+                PLAYER
+              </span>
             </div>
 
             <button id="addFriend">
               ADD
             </button>
+
           </div>
         `;
 
         document
           .querySelector("#addFriend")
           .addEventListener("click", async () => {
+
             try {
+
               await sendFriendRequest(
                 {
                   uid: user.uid,
                   username
                 },
-                foundUser
+                found
               );
 
               message.textContent =
                 "Friend request sent.";
 
-              document
-                .querySelector("#addFriend")
-                .disabled = true;
+              const button =
+                document.querySelector("#addFriend");
 
-              document
-                .querySelector("#addFriend")
-                .textContent = "SENT";
+              button.textContent = "SENT";
+              button.disabled = true;
+
             } catch (error) {
-              if (error.message === "REQUEST_EXISTS") {
+
+              console.error(error);
+
+              if (
+                error.message ===
+                "REQUEST_EXISTS"
+              ) {
                 message.textContent =
-                  "Friend request already sent.";
+                  "Request already sent.";
               } else {
                 message.textContent =
                   "Couldn't send request.";
               }
             }
           });
+
       } catch (error) {
         console.error(error);
+
         message.textContent =
           "Something went wrong.";
       }
     });
 
-  loadFriendRequests(user);
+  await loadFriendRequests(user);
 }
 
 async function loadFriendRequests(user) {
   const container =
     document.querySelector("#requests");
 
-  const requests =
-    await getIncomingRequests(user.uid);
+  try {
+    const requests =
+      await getIncomingRequests(user.uid);
 
-  if (requests.length === 0) {
-    container.innerHTML = `
-      <p class="empty">
-        No friend requests.
-      </p>
-    `;
-    return;
-  }
+    if (requests.length === 0) {
+      container.innerHTML = `
+        <p class="empty">
+          No friend requests.
+        </p>
+      `;
 
-  container.innerHTML = requests
-    .map(
-      (request) => `
+      return;
+    }
+
+    container.innerHTML =
+      requests.map((request) => `
         <div class="request">
+
           <div>
-            <strong>@${request.fromUsername}</strong>
-            <span>WANTS TO FIGHT</span>
+            <strong>
+              @${request.fromUsername}
+            </strong>
+
+            <span>
+              WANTS TO FIGHT
+            </span>
           </div>
 
           <div class="request-buttons">
+
             <button
               class="accept"
               data-id="${request.id}"
@@ -480,70 +575,108 @@ async function loadFriendRequests(user) {
             >
               DECLINE
             </button>
+
           </div>
+
         </div>
-      `
-    )
-    .join("");
+      `).join("");
 
-  document
-    .querySelectorAll(".accept")
-    .forEach((button) => {
-      button.addEventListener("click", async () => {
-        const request =
-          requests.find(
-            (item) => item.id === button.dataset.id
-          );
+    document
+      .querySelectorAll(".accept")
+      .forEach((button) => {
 
-        await acceptFriendRequest(request);
+        button.addEventListener(
+          "click",
+          async () => {
 
-        loadFriendRequests(user);
-      });
-    });
+            const request =
+              requests.find(
+                (item) =>
+                  item.id === button.dataset.id
+              );
 
-  document
-    .querySelectorAll(".decline")
-    .forEach((button) => {
-      button.addEventListener("click", async () => {
-        await declineFriendRequest(
-          button.dataset.id
+            try {
+              await acceptFriendRequest(
+                request
+              );
+
+              await loadFriendRequests(user);
+
+            } catch (error) {
+              console.error(error);
+            }
+          }
         );
-
-        loadFriendRequests(user);
       });
-    });
+
+    document
+      .querySelectorAll(".decline")
+      .forEach((button) => {
+
+        button.addEventListener(
+          "click",
+          async () => {
+
+            try {
+              await declineFriendRequest(
+                button.dataset.id
+              );
+
+              await loadFriendRequests(user);
+
+            } catch (error) {
+              console.error(error);
+            }
+          }
+        );
+      });
+
+  } catch (error) {
+    console.error(error);
+
+    container.innerHTML = `
+      <p class="empty">
+        Couldn't load requests.
+      </p>
+    `;
+  }
 }
 
+/* =========================
+   PROFILE
+========================= */
+
 async function showProfile(user) {
-  const profileSnap = await getDoc(
-    doc(db, "users", user.uid)
-  );
+  const profile = await getProfile(user);
 
-  const profile = profileSnap.exists()
-    ? profileSnap.data()
-    : {};
+  const username =
+    profile?.username || "PLAYER";
 
-  const username = profile.username || "PLAYER";
-  const wins = profile.wins ?? 0;
-  const losses = profile.losses ?? 0;
+  const wins =
+    profile?.wins ?? 0;
+
+  const losses =
+    profile?.losses ?? 0;
 
   app.innerHTML = `
     <main class="knockd">
       <section class="home">
 
-        <button id="back" class="back">
+        <button id="backButton" class="back">
           ← BACK
         </button>
 
         <div class="avatar large">
-          ${username.charAt(0).toUpperCase()}
+          ${username[0].toUpperCase()}
         </div>
 
         <div class="logo small-logo">
           KNOCKD
         </div>
 
-        <h1>@${username}</h1>
+        <h1>
+          @${username}
+        </h1>
 
         <p class="email">
           ${user.email}
@@ -564,13 +697,15 @@ async function showProfile(user) {
         </div>
 
         <div class="menu">
-          <button id="back2">
+
+          <button id="menuButton">
             BACK TO MENU
           </button>
 
-          <button id="logout">
+          <button id="logoutButton">
             LOG OUT
           </button>
+
         </div>
 
       </section>
@@ -578,23 +713,47 @@ async function showProfile(user) {
   `;
 
   document
-    .querySelector("#back")
-    .addEventListener("click", () => showHome(user));
+    .querySelector("#backButton")
+    .addEventListener("click", () => {
+      showHome(user);
+    });
 
   document
-    .querySelector("#back2")
-    .addEventListener("click", () => showHome(user));
+    .querySelector("#menuButton")
+    .addEventListener("click", () => {
+      showHome(user);
+    });
 
   document
-    .querySelector("#logout")
+    .querySelector("#logoutButton")
     .addEventListener("click", async () => {
       await signOut(auth);
     });
 }
 
+/* =========================
+   AUTH STATE
+========================= */
+
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    showHome(user);
+    showHome(user).catch((error) => {
+      console.error(error);
+
+      app.innerHTML = `
+        <main class="knockd">
+          <section class="auth-card">
+            <div class="logo">
+              KNOCKD
+            </div>
+
+            <p class="message">
+              Something went wrong loading KNOCKD.
+            </p>
+          </section>
+        </main>
+      `;
+    });
   } else {
     showAuth();
   }
