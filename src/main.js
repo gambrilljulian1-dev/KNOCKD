@@ -20,6 +20,14 @@ import {
 
 import { createUserProfile } from "./profile.js";
 
+import {
+  searchUser,
+  sendFriendRequest,
+  getIncomingRequests,
+  acceptFriendRequest,
+  declineFriendRequest
+} from "./friends.js";
+
 const app = document.querySelector("#app");
 
 async function checkUsernameTaken(usernameLower) {
@@ -53,7 +61,6 @@ function showAuth() {
             type="text"
             placeholder="Username"
             maxlength="20"
-            autocomplete="username"
             style="display:none;"
           >
 
@@ -61,7 +68,6 @@ function showAuth() {
             id="email"
             type="email"
             placeholder="Email"
-            autocomplete="email"
             required
           >
 
@@ -104,7 +110,9 @@ function showAuth() {
     usernameInput.required = mode === "signup";
 
     submitButton.textContent =
-      mode === "login" ? "LOG IN" : "CREATE ACCOUNT";
+      mode === "login"
+        ? "LOG IN"
+        : "CREATE ACCOUNT";
 
     message.textContent = "";
   }
@@ -199,6 +207,7 @@ async function showHome(user) {
   app.innerHTML = `
     <main class="knockd">
       <section class="home">
+
         <div class="logo">KNOCKD</div>
 
         <p class="tagline">
@@ -226,7 +235,7 @@ async function showHome(user) {
         </div>
 
         <div class="menu">
-          <button id="quickMatch" class="primary">
+          <button class="primary">
             QUICK MATCH
           </button>
 
@@ -234,11 +243,11 @@ async function showHome(user) {
             FRIENDS
           </button>
 
-          <button id="practice">
+          <button>
             PRACTICE
           </button>
 
-          <button id="fighters">
+          <button>
             FIGHTERS
           </button>
 
@@ -250,14 +259,15 @@ async function showHome(user) {
             LOG OUT
           </button>
         </div>
+
       </section>
     </main>
   `;
 
   document
-    .querySelector("#logout")
-    .addEventListener("click", async () => {
-      await signOut(auth);
+    .querySelector("#friends")
+    .addEventListener("click", () => {
+      showFriends(user);
     });
 
   document
@@ -265,11 +275,249 @@ async function showHome(user) {
     .addEventListener("click", () => {
       showProfile(user);
     });
+
+  document
+    .querySelector("#logout")
+    .addEventListener("click", async () => {
+      await signOut(auth);
+    });
+}
+
+async function showFriends(user) {
+  const profileSnap = await getDoc(
+    doc(db, "users", user.uid)
+  );
+
+  const profile = profileSnap.exists()
+    ? profileSnap.data()
+    : {};
+
+  const username = profile.username || "PLAYER";
+
+  app.innerHTML = `
+    <main class="knockd">
+      <section class="home">
+
+        <button id="back" class="back">
+          ← BACK
+        </button>
+
+        <div class="logo small-logo">
+          FRIENDS
+        </div>
+
+        <p class="tagline">
+          FIND YOUR OPPONENTS.
+        </p>
+
+        <div class="friend-search">
+          <input
+            id="friendUsername"
+            type="text"
+            placeholder="Search username"
+            maxlength="20"
+          >
+
+          <button id="searchFriend" class="primary">
+            SEARCH
+          </button>
+
+          <p id="friendMessage" class="message"></p>
+
+          <div id="searchResult"></div>
+        </div>
+
+        <div class="friend-section">
+          <h2>FRIEND REQUESTS</h2>
+          <div id="requests">
+            Loading...
+          </div>
+        </div>
+
+      </section>
+    </main>
+  `;
+
+  document
+    .querySelector("#back")
+    .addEventListener("click", () => {
+      showHome(user);
+    });
+
+  document
+    .querySelector("#searchFriend")
+    .addEventListener("click", async () => {
+      const input =
+        document.querySelector("#friendUsername");
+
+      const message =
+        document.querySelector("#friendMessage");
+
+      const result =
+        document.querySelector("#searchResult");
+
+      const searchedUsername =
+        input.value.trim();
+
+      if (!searchedUsername) {
+        message.textContent =
+          "Enter a username.";
+        return;
+      }
+
+      message.textContent = "Searching...";
+      result.innerHTML = "";
+
+      try {
+        const foundUser =
+          await searchUser(searchedUsername);
+
+        if (!foundUser) {
+          message.textContent =
+            "User not found.";
+          return;
+        }
+
+        if (foundUser.uid === user.uid) {
+          message.textContent =
+            "You can't add yourself.";
+          return;
+        }
+
+        message.textContent = "";
+
+        result.innerHTML = `
+          <div class="user-result">
+            <div>
+              <strong>@${foundUser.username}</strong>
+              <span>PLAYER</span>
+            </div>
+
+            <button id="addFriend">
+              ADD
+            </button>
+          </div>
+        `;
+
+        document
+          .querySelector("#addFriend")
+          .addEventListener("click", async () => {
+            try {
+              await sendFriendRequest(
+                {
+                  uid: user.uid,
+                  username
+                },
+                foundUser
+              );
+
+              message.textContent =
+                "Friend request sent.";
+
+              document
+                .querySelector("#addFriend")
+                .disabled = true;
+
+              document
+                .querySelector("#addFriend")
+                .textContent = "SENT";
+            } catch (error) {
+              if (error.message === "REQUEST_EXISTS") {
+                message.textContent =
+                  "Friend request already sent.";
+              } else {
+                message.textContent =
+                  "Couldn't send request.";
+              }
+            }
+          });
+      } catch (error) {
+        console.error(error);
+        message.textContent =
+          "Something went wrong.";
+      }
+    });
+
+  loadFriendRequests(user);
+}
+
+async function loadFriendRequests(user) {
+  const container =
+    document.querySelector("#requests");
+
+  const requests =
+    await getIncomingRequests(user.uid);
+
+  if (requests.length === 0) {
+    container.innerHTML = `
+      <p class="empty">
+        No friend requests.
+      </p>
+    `;
+    return;
+  }
+
+  container.innerHTML = requests
+    .map(
+      (request) => `
+        <div class="request">
+          <div>
+            <strong>@${request.fromUsername}</strong>
+            <span>WANTS TO FIGHT</span>
+          </div>
+
+          <div class="request-buttons">
+            <button
+              class="accept"
+              data-id="${request.id}"
+            >
+              ACCEPT
+            </button>
+
+            <button
+              class="decline"
+              data-id="${request.id}"
+            >
+              DECLINE
+            </button>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+
+  document
+    .querySelectorAll(".accept")
+    .forEach((button) => {
+      button.addEventListener("click", async () => {
+        const request =
+          requests.find(
+            (item) => item.id === button.dataset.id
+          );
+
+        await acceptFriendRequest(request);
+
+        loadFriendRequests(user);
+      });
+    });
+
+  document
+    .querySelectorAll(".decline")
+    .forEach((button) => {
+      button.addEventListener("click", async () => {
+        await declineFriendRequest(
+          button.dataset.id
+        );
+
+        loadFriendRequests(user);
+      });
+    });
 }
 
 async function showProfile(user) {
-  const profileRef = doc(db, "users", user.uid);
-  const profileSnap = await getDoc(profileRef);
+  const profileSnap = await getDoc(
+    doc(db, "users", user.uid)
+  );
 
   const profile = profileSnap.exists()
     ? profileSnap.data()
