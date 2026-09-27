@@ -13,8 +13,12 @@ body {
   background:
     radial-gradient(circle at top, #242424 0%, #0b0b0b 45%, #050505 100%);
 }
-button {
+button,
+input {
   font: inherit;
+}
+button {
+  cursor: pointer;
 }
 .knockd {
   min-height: 100vh;
@@ -23,81 +27,114 @@ button {
   justify-content: center;
   padding: 24px;
 }
-.hero {
+.auth-card,
+.home {
   width: 100%;
-  max-width: 520px;
+  max-width: 430px;
   text-align: center;
 }
 .logo {
-  font-size: clamp(52px, 16vw, 96px);
+  font-size: clamp(54px, 16vw, 88px);
   font-weight: 1000;
   letter-spacing: -5px;
   line-height: 0.9;
 }
 .tagline {
-  margin: 18px 0 28px;
-  color: #a8a8a8;
-  font-size: 13px;
+  margin: 16px 0 30px;
+  color: #999999;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 4px;
 }
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 32px;
-  padding: 8px 13px;
-  border: 1px solid #292929;
-  border-radius: 999px;
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 16px;
   background: #111111;
-  color: #bdbdbd;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1px;
+  border: 1px solid #292929;
+  border-radius: 13px;
 }
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+.tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #777777;
+  font-weight: 900;
+}
+.tabs button.active {
   background: #ffffff;
-  box-shadow: 0 0 10px #ffffff;
+  color: #050505;
 }
-.buttons {
+form {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+input {
   width: 100%;
-  max-width: 320px;
-  margin: 0 auto;
-}
-.buttons button {
   min-height: 52px;
-  border: 0;
+  padding: 0 16px;
+  border: 1px solid #292929;
   border-radius: 12px;
-  background: #ffffff;
-  color: #050505;
-  font-size: 14px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  outline: none;
+  background: #111111;
+  color: #ffffff;
 }
-.buttons button:hover {
-  transform: translateY(-2px);
+input:focus {
+  border-color: #ffffff;
 }
-.buttons button:active {
-  transform: translateY(0);
-}
-.buttons .secondary {
+form button,
+.menu button {
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid #303030;
+  border-radius: 12px;
   background: #171717;
   color: #ffffff;
-  border: 1px solid #303030;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+form .primary,
+.menu .primary {
+  background: #ffffff;
+  color: #050505;
+  border-color: #ffffff;
+}
+.message {
+  min-height: 20px;
+  margin: 14px 0 0;
+  color: #bdbdbd;
+  font-size: 13px;
+}
+.signed-in {
+  margin: 0 0 28px;
+  color: #888888;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.signed-in strong {
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.menu button {
+  transition: transform 0.15s ease;
+}
+.menu button:hover {
+  transform: translateY(-2px);
+}
+.menu button:active {
+  transform: translateY(0);
 }
 @media (max-width: 480px) {
   .knockd {
     padding: 20px;
-  }
-  .logo {
-    letter-spacing: -3px;
   }
 }
